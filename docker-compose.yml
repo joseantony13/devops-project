@@ -30,4 +30,3 @@ services:
 
 volumes:
   jenkins_home:
-
