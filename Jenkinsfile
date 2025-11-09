@@ -1,35 +1,50 @@
 pipeline {
   agent any
+
   environment {
     IMAGE = "jose22an/sample-app"
   }
+
   stages {
     stage('Checkout') {
-      steps { checkout scm }
+      steps {
+        checkout scm
+      }
     }
+
     stage('Build') {
       steps {
         sh 'docker build -t sample-app:local ./app'
       }
     }
+
     stage('Test') {
       steps {
         sh 'docker run --rm sample-app:local npm test || true'
       }
     }
-    stage('Push') {
+
+    stage('Push to Docker Hub') {
       steps {
-        // If using Docker Hub credentials, configure Jenkins credentials and use docker login
-        sh '''
-          docker tag sample-app:local $IMAGE:latest
-          # echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-          # docker push $IMAGE:latest
-        '''
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker tag sample-app:local $IMAGE:latest
+            docker push $IMAGE:latest
+            docker logout
+          '''
+        }
       }
     }
   }
+
   post {
-    success { echo 'Pipeline succeeded' }
-    failure { echo 'Pipeline failed' }
+    success {
+      echo '✅ Pipeline completed successfully. Image pushed to Docker Hub.'
+    }
+    failure {
+      echo '❌ Pipeline failed. Check logs.'
+    }
   }
 }
+
